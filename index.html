@@ -1,0 +1,2303 @@
+<!--
+Cosmic Griddion Football League (CGFL) Hub
+Version: 3.0.1
+Date: 2025-11-12
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Griddion Football League Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A; /* slate-900 */
+            color: #E2E8F0; /* slate-200 */
+        }
+        /* ... existing style ... */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+
+        /* Navigation Tabs (Button Style) */
+        .nav-tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 8px; /* Rounded corners */
+            font-weight: 600;
+            color: #94A3B8; /* slate-400 */
+            transition: all 0.2s ease;
+        }
+        .nav-tab:hover {
+            background-color: #334155; /* slate-700 */
+            color: #E2E8F0; /* slate-200 */
+        }
+        .nav-tab.active {
+            color: #FFFFFF; /* white */
+            background-color: #2563EB; /* blue-600 */
+        }
+
+        /* Custom font weights */
+        .font-black-display { font-weight: 900; }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1E293B; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Playoff Bracket Styles */
+        .bracket {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        .round {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 200px; /* Width of a game box */
+            margin: 0 50px; /* Space between rounds */
+        }
+        .game {
+            position: relative;
+            background-color: #1E293B; /* slate-800 */
+            border: 1px solid #334155; /* slate-700 */
+            border-radius: 8px;
+            padding: 10px;
+            margin: 20px 0;
+            min-height: 80px; /* Ensure space for two teams */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .game:hover {
+            border-color: #64748B; /* slate-500 */
+        }
+        .team {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            color: #CBD5E1; /* slate-300 */
+        }
+        .team.winner {
+            font-weight: 700;
+            color: #F8FAFC; /* slate-50 */
+        }
+        .team.tbd {
+            font-style: italic;
+            color: #64748B; /* slate-500 */
+        }
+        .team-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+        .team-score {
+            font-weight: 700;
+            min-width: 20px;
+            text-align: right;
+        }
+        .game-meta {
+            font-size: 0.75rem;
+            color: #94A3B8; /* slate-400 */
+            text-align: center;
+            border-top: 1px dashed #334155;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        
+        /* Connectors */
+        .game {
+            position: relative;
+        }
+        .game-connector {
+            position: absolute;
+            width: 25px; /* Half of the space between rounds */
+            height: 2px;
+            background-color: #334155;
+            top: 50%;
+            right: -25px; /* Connect to the right */
+        }
+        .round:last-child .game-connector {
+            display: none; /* No connectors from the final round */
+        }
+        .game:nth-child(odd) .game-connector {
+            border-top-right-radius: 5px;
+        }
+        .game:nth-child(even) .game-connector {
+            border-bottom-right-radius: 5px;
+        }
+        
+        /* Vertical connector lines */
+        .game::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            background-color: #334155;
+            right: -25px; /* Same as connector horizontal part */
+            height: calc(100% + 40px); /* Game height + margin */
+            top: 50%;
+            z-index: -1;
+        }
+        
+        /* Adjust for pairs of games */
+        .game:nth-child(odd)::after {
+            height: calc(50% + 20px); /* Half height + half margin */
+            top: 50%;
+        }
+        .game:nth-child(even)::after {
+            height: calc(50% + 20px); /* Half height + half margin */
+            bottom: 50%;
+            top: auto;
+        }
+
+        /* Single game in a round (e.g., final) */
+        .round.round-final .game {
+            margin: 20px 0;
+        }
+        .round.round-final .game::after {
+            display: none;
+        }
+        
+        /* Hide connectors for rounds that don't feed into another */
+        .round.round-pro-bowl .game::after,
+        .round.round-pro-bowl .game-connector,
+        .round.round-3rd-place .game::after,
+        .round.round-3rd-place .game-connector {
+            display: none;
+        }
+
+        /* Specific adjustments for bracket lines */
+        /* Connect the vertical lines */
+        .round:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            background-color: #334155;
+            right: calc(50% - 25px); /* Center of the gap */
+            top: calc(25% + 50px); /* Adjust to connect game 1 and 2 */
+            height: calc(50% - 20px); /* Height of the connection */
+        }
+        
+        /* This is getting complex, let's simplify. We'll use JS to draw SVG connectors. */
+        /* For now, let's remove the complex CSS connectors and just use simple lines */
+        .game::after, .round::after {
+            display: none;
+        }
+
+        .game-connector-wrapper {
+            position: absolute;
+            top: 0;
+            left: 100%;
+            width: 50px; /* Space between rounds */
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .game-connector-line {
+            stroke: #334155;
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        /* Hide edit button by default */
+        .btn-edit-score-playoff {
+            display: none;
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            padding: 2px;
+            background-color: #334155;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: all 0.2s ease;
+        }
+        .game:hover .btn-edit-score-playoff {
+            display: block; /* Show on hover */
+        }
+        .btn-edit-score-playoff:hover {
+            opacity: 1;
+            background-color: #475569;
+        }
+        /* Hide button if teams are TBD */
+        .game.teams-tbd .btn-edit-score-playoff {
+            display: none !important;
+        }
+        
+        /* Fallback for hard crashes */
+        #fatal-error-fallback {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #0F172A;
+            color: #F8FAFC;
+            z-index: 9998;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        /* Error Modal */
+        #error-modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        #error-modal-content {
+            background-color: #1E293B;
+            border: 1px solid #F43F5E; /* red-500 */
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <!-- Fatal Error Fallback -->
+    <div id="fatal-error-fallback">
+        <h1 class="text-3xl font-bold text-red-500 mb-4">A Fatal Error Occurred</h1>
+        <p class="text-lg text-slate-300 mb-6">The application could not start, likely due to corrupted saved data.</p>
+        <button id="fatal-reset-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors">
+            Force Reset and Reload
+        </button>
+        <p class="text-sm text-slate-400 mt-4">Note: This will clear all your saved league data.</p>
+    </div>
+
+    <!-- Main App Container (Hidden until ready) -->
+    <div id="app-container" class="max-w-7xl mx-auto opacity-0 transition-opacity duration-500">
+
+        <!-- Header -->
+        <header class="mb-6 flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-black-display text-white">CGFL Hub</h1>
+                <p class="text-lg text-slate-400">Cosmic Griddion Football League</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-save" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Save Data</button>
+                <button id="btn-settings" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Settings</button>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <nav class="mb-6">
+            <ul class="flex flex-wrap gap-2">
+                <li class="nav-tab active" data-tab="tab-teams">Teams</li>
+                <li class="nav-tab" data-tab="tab-standings">Standings</li>
+                <li class="nav-tab" data-tab="tab-schedule">Regular Season</li>
+                <li class="nav-tab" data-tab="tab-tiebreakers">Tie-Breakers</li>
+                <li class="nav-tab" data-tab="tab-playoffs">Playoffs</li>
+                <li class="nav-tab" data-tab="tab-scores">Live Scoreboards</li>
+                <li class="nav-tab" data-tab="tab-history">Season History</li>
+            </ul>
+        </nav>
+
+        <!-- Tab Content -->
+        <main>
+            <!-- Teams Tab -->
+            <section id="tab-teams" class="tab-content active space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="team-list-container">
+                    <!-- Team conferences will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <!-- Standings Tab -->
+            <section id="tab-standings" class="tab-content space-y-6">
+                <!-- Standings will be dynamically inserted here -->
+            </section>
+
+            <!-- Regular Season Schedule Tab -->
+            <section id="tab-schedule" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">Regular Season Schedule</h2>
+                    <button id="btn-clear-scores-schedule" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Clear All Scores</button>
+                </div>
+                <div id="schedule-container" class="space-y-6">
+                    <!-- Schedule weeks will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <!-- Tie-Breakers Tab -->
+            <section id="tab-tiebreakers" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">Tie-Breaker Games</h2>
+                    <button id="btn-clear-scores-tiebreakers" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Clear All Scores</button>
+                </div>
+                <div id="tiebreaker-container" class="space-y-6">
+                    <!-- Tie-breaker games will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <!-- Playoffs Tab -->
+            <section id="tab-playoffs" class="tab-content space-y-6">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <h2 class="text-2xl font-bold text-white">Playoffs</h2>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="btn-auto-populate-playoffs" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Auto-Populate Winners</button>
+                        <button id="btn-clear-scores-playoffs" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Clear All Scores</button>
+                    </div>
+                </div>
+                <!-- Playoff brackets will be dynamically inserted here -->
+                <div id="playoff-brackets-container" class="space-y-12"></div>
+            </section>
+            
+            <!-- Live Scoreboards Tab -->
+            <section id="tab-scores" class="tab-content space-y-6">
+                <h2 class="text-2xl font-bold text-white">Live Scoreboards</h2>
+                <div id="live-scores-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Live scoreboards will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <!-- Season History Tab -->
+            <section id="tab-history" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-white">Season History</h2>
+                    <button id="btn-save-season" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Save Current Season to History</button>
+                </div>
+                <div id="season-history-container" class="space-y-4">
+                    <!-- Season history will be dynamically inserted here -->
+                </div>
+            </section>
+        </main>
+    </div> <!-- End #app-container -->
+
+
+    <!-- Modals -->
+
+    <!-- Edit Score Modal -->
+    <div id="modal-edit-score" class="modal fixed inset-0 bg-black bg-opacity-75 items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-lg shadow-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold text-white mb-4" id="modal-score-title">Edit Score</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between space-x-4">
+                    <label id="modal-team1-name" for="modal-team1-score" class="text-lg font-semibold text-slate-200 w-2/5 truncate"></label>
+                    <input type="number" id="modal-team1-score" class="w-24 bg-slate-900 border border-slate-700 text-white text-center text-lg rounded-md p-2" min="0">
+                </div>
+                <div class="flex items-center justify-between space-x-4">
+                    <label id="modal-team2-name" for="modal-team2-score" class="text-lg font-semibold text-slate-200 w-2/5 truncate"></label>
+                    <input type="number" id="modal-team2-score" class="w-24 bg-slate-900 border border-slate-700 text-white text-center text-lg rounded-md p-2" min="0">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-slate-400">Game Status:</label>
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center gap-2 text-white">
+                            <input type="radio" name="gameStatus" value="pending" id="modal-status-pending" class="form-radio bg-slate-700 border-slate-600">
+                            Pending
+                        </label>
+                        <label class="flex items-center gap-2 text-white">
+                            <input type="radio" name="gameStatus" value="final" id="modal-status-final" class="form-radio bg-slate-700 border-slate-600">
+                            Final
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" id="modal-game-id">
+            <input type="hidden" id="modal-game-type">
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="btn-modal-score-cancel" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Cancel</button>
+                <button id="btn-modal-score-save" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="modal fixed inset-0 bg-black bg-opacity-75 items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-lg shadow-2xl p-6 w-full max-w-lg">
+            <h3 class="text-xl font-bold text-white mb-6">Settings</h3>
+            <div class="space-y-4">
+                <button id="btn-export-data" class="w-full text-left bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-5 rounded-lg transition-colors">
+                    Export League Data (.json)
+                </button>
+                <div>
+                    <label for="import-file-input" class="w-full text-left bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-5 rounded-lg transition-colors cursor-pointer block">
+                        Import League Data (.json)
+                    </label>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json">
+                </div>
+                <button id="btn-reset-all" class="w-full text-left bg-red-800 hover:bg-red-700 text-white font-semibold py-3 px-5 rounded-lg transition-colors">
+                    Reset All League Data (Warning: Irreversible)
+                </button>
+            </div>
+            <div class="flex justify-end gap-3 mt-8">
+                <button id="btn-modal-settings-close" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Team Modal -->
+    <div id="modal-edit-team" class="modal fixed inset-0 bg-black bg-opacity-75 items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-lg shadow-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold text-white mb-4" id="modal-team-title">Edit Team</h3>
+            <div classs="space-y-4">
+                <div>
+                    <label for="modal-team-name" class="block text-sm font-medium text-slate-400 mb-1">Team Name</label>
+                    <input type="text" id="modal-team-name" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-2">
+                </div>
+                 <div class="mt-4">
+                    <label for="modal-team-logo" class="block text-sm font-medium text-slate-400 mb-1">Logo URL (Optional)</label>
+                    <input type="text" id="modal-team-logo" class="w-full bg-slate-900 border border-slate-700 text-white rounded-md p-2" placeholder="https://...">
+                </div>
+            </div>
+            <input type="hidden" id="modal-team-id">
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="btn-modal-team-cancel" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Cancel</button>
+                <button id="btn-modal-team-save" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal">
+        <div id="error-modal-content">
+            <h2 class="text-2xl font-bold text-red-500 mb-4">An Error Occurred</h2>
+            <p id="error-message-text" class="text-slate-300 mb-6">Something went wrong. Please try again.</p>
+            <div class="flex justify-between items-center gap-4">
+                <button id="error-reset-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    Reset All Data & Reload
+                </button>
+                <button id="error-close-button" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    Close
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 mt-4">Note: Resetting data is irreversible and will clear your league.</p>
+        </div>
+    </div>
+
+    <!-- JS code moved to the end of <body> -->
+    <script type="module">
+// --- CONSTANTS & CONFIG ---
+const CURRENT_APP_VERSION = "3.0.1"; // Updated version
+const DB_STORAGE_KEY = 'cgfl_league_data';
+
+// This is the app's "source of truth".
+// All data structures must be defined here.
+let db = {
+    version: CURRENT_APP_VERSION,
+    teams: {
+        // C-American / C-American North
+        "T1": { name: "Quantum Quasars", conference: "C-American", division: "C-American North", logo: "" },
+        "T2": { name: "Nebula Nomads", conference: "C-American", division: "C-American North", logo: "" },
+        "T3": { name: "Gravity Guardians", conference: "C-American", division: "C-American North", logo: "" },
+        "T4": { name: "Cosmic Comets", conference: "C-American", division: "C-American North", logo: "" },
+        // C-American / C-American South
+        "T5": { name: "Solar Sentinels", conference: "C-American", division: "C-American South", logo: "" },
+        "T6": { name: "Orion Outlaws", conference: "C-American", division: "C-American South", logo: "" },
+        "T7": { name: "Pulsar Pioneers", conference: "C-American", division: "C-American South", logo: "" },
+        "T8": { name: "Asteroid Avengers", conference: "C-American", division: "C-American South", logo: "" },
+        // C-National / C-National North
+        "T9": { name: "Galaxy Gladiators", conference: "C-National", division: "C-National North", logo: "" },
+        "T10": { name: "Vortex Vipers", conference: "C-National", division: "C-National North", logo: "" },
+        "T11": { name: "Starstream Strikers", conference: "C-National", division: "C-National North", logo: "" },
+        "T12": { name: "Meteorite Monsters", conference: "C-National", division: "C-National North", logo: "" },
+        // C-National / C-National South
+        "T13": { name: "Rocket Raiders", conference: "C-National", division: "C-National South", logo: "" },
+        "T14": { name: "Darkmatter Dynamos", conference: "C-National", division: "C-National South", logo: "" },
+        "T15": { name: "Supernova Surge", conference: "C-National", division: "C-National South", logo: "" },
+        "T16": { name: "Celestial Centurions", conference: "C-National", division: "C-National South", logo: "" },
+        // C-Empire / C-Empire North
+        "T17": { name: "Photon Phantoms", conference: "C-Empire", division: "C-Empire North", logo: "" },
+        "T18": { name: "Zero-G Zombies", conference: "C-Empire", division: "C-Empire North", logo: "" },
+        "T19": { name: "Andromeda Aces", conference: "C-Empire", division: "C-Empire North", logo: "" },
+        "T20": { name: "Void Valkyries", conference: "C-Empire", division: "C-Empire North", logo: "" },
+        // C-Empire / C-Empire South
+        "T21": { name: "Blackhole Brawlers", conference: "C-Empire", division: "C-Empire South", logo: "" },
+        "T22": { name: "Lunar Lycans", conference: "C-Empire", division: "C-Empire South", logo: "" },
+        "T23": { name: "Martian Mavericks", conference: "C-Empire", division: "C-Empire South", logo: "" },
+        "T24": { name: "Titan Titans", conference: "C-Empire", division: "C-Empire South", logo: "" },
+        // C-Plasma / C-Plasma North
+        "T25": { name: "Jupiter Giants", conference: "C-Plasma", division: "C-Plasma North", logo: "" },
+        "T26": { name: "Saturn Stalkers", conference: "C-Plasma", division: "C-Plasma North", logo: "" },
+        "T27": { name: "Uranus Unleashed", conference: "C-Plasma", division: "C-Plasma North", logo: "" },
+        "T28": { name: "Neptune Nightmares", conference: "C-Plasma", division: "C-Plasma North", logo: "" },
+        // C-Plasma / C-Plasma South
+        "T29": { name: "Pluto Predators", conference: "C-Plasma", division: "C-Plasma South", logo: "" },
+        "T30": { name: "Kuiper Kings", conference: "C-Plasma", division: "C-Plasma South", logo: "" },
+        "T31": { name: "Eris Enigmas", conference: "C-Plasma", division: "C-Plasma South", logo: "" },
+        "T32": { name: "Oort-Cloud Obliterators", conference: "C-Plasma", division: "C-Plasma South", logo: "" },
+    },
+    schedule: {
+        // Week 1 (Division)
+        "W1G1": { week: 1, type: "schedule", t1: "T1", t2: "T2", s1: null, s2: null, status: "pending" },
+        "W1G2": { week: 1, type: "schedule", t1: "T3", t2: "T4", s1: null, s2: null, status: "pending" },
+        "W1G3": { week: 1, type: "schedule", t1: "T5", t2: "T6", s1: null, s2: null, status: "pending" },
+        "W1G4": { week: 1, type: "schedule", t1: "T7", t2: "T8", s1: null, s2: null, status: "pending" },
+        "W1G5": { week: 1, type: "schedule", t1: "T9", t2: "T10", s1: null, s2: null, status: "pending" },
+        "W1G6": { week: 1, type: "schedule", t1: "T11", t2: "T12", s1: null, s2: null, status: "pending" },
+        "W1G7": { week: 1, type: "schedule", t1: "T13", t2: "T14", s1: null, s2: null, status: "pending" },
+        "W1G8": { week: 1, type: "schedule", t1: "T15", t2: "T16", s1: null, s2: null, status: "pending" },
+        "W1G9": { week: 1, type: "schedule", t1: "T17", t2: "T18", s1: null, s2: null, status: "pending" },
+        "W1G10": { week: 1, type: "schedule", t1: "T19", t2: "T20", s1: null, s2: null, status: "pending" },
+        "W1G11": { week: 1, type: "schedule", t1: "T21", t2: "T22", s1: null, s2: null, status: "pending" },
+        "W1G12": { week: 1, type: "schedule", t1: "T23", t2: "T24", s1: null, s2: null, status: "pending" },
+        "W1G13": { week: 1, type: "schedule", t1: "T25", t2: "T26", s1: null, s2: null, status: "pending" },
+        "W1G14": { week: 1, type: "schedule", t1: "T27", t2: "T28", s1: null, s2: null, status: "pending" },
+        "W1G15": { week: 1, type: "schedule", t1: "T29", t2: "T30", s1: null, s2: null, status: "pending" },
+        "W1G16": { week: 1, type: "schedule", t1: "T31", t2: "T32", s1: null, s2: null, status: "pending" },
+        // Week 2 (Division)
+        "W2G1": { week: 2, type: "schedule", t1: "T1", t2: "T3", s1: null, s2: null, status: "pending" },
+        "W2G2": { week: 2, type: "schedule", t1: "T2", t2: "T4", s1: null, s2: null, status: "pending" },
+        "W2G3": { week: 2, type: "schedule", t1: "T5", t2: "T7", s1: null, s2: null, status: "pending" },
+        "W2G4": { week: 2, type: "schedule", t1: "T6", t2: "T8", s1: null, s2: null, status: "pending" },
+        "W2G5": { week: 2, type: "schedule", t1: "T9", t2: "T11", s1: null, s2: null, status: "pending" },
+        "W2G6": { week: 2, type: "schedule", t1: "T10", t2: "T12", s1: null, s2: null, status: "pending" },
+        "W2G7": { week: 2, type: "schedule", t1: "T13", t2: "T15", s1: null, s2: null, status: "pending" },
+        "W2G8": { week: 2, type: "schedule", t1: "T14", t2: "T16", s1: null, s2: null, status: "pending" },
+        "W2G9": { week: 2, type: "schedule", t1: "T17", t2: "T19", s1: null, s2: null, status: "pending" },
+        "W2G10": { week: 2, type: "schedule", t1: "T18", t2: "T20", s1: null, s2: null, status: "pending" },
+        "W2G11": { week: 2, type: "schedule", t1: "T21", t2: "T23", s1: null, s2: null, status: "pending" },
+        "W2G12": { week: 2, type: "schedule", t1: "T22", t2: "T24", s1: null, s2: null, status: "pending" },
+        "W2G13": { week: 2, type: "schedule", t1: "T25", t2: "T27", s1: null, s2: null, status: "pending" },
+        "W2G14": { week: 2, type: "schedule", t1: "T26", t2: "T28", s1: null, s2: null, status: "pending" },
+        "W2G15": { week: 2, type: "schedule", t1: "T29", t2: "T31", s1: null, s2: null, status: "pending" },
+        "W2G16": { week: 2, type: "schedule", t1: "T30", t2: "T32", s1: null, s2: null, status: "pending" },
+        // Week 3 (Division)
+        "W3G1": { week: 3, type: "schedule", t1: "T1", t2: "T4", s1: null, s2: null, status: "pending" },
+        "W3G2": { week: 3, type: "schedule", t1: "T2", t2: "T3", s1: null, s2: null, status: "pending" },
+        "W3G3": { week: 3, type: "schedule", t1: "T5", t2: "T8", s1: null, s2: null, status: "pending" },
+        "W3G4": { week: 3, type: "schedule", t1: "T6", t2: "T7", s1: null, s2: null, status: "pending" },
+        "W3G5": { week: 3, type: "schedule", t1: "T9", t2: "T12", s1: null, s2: null, status: "pending" },
+        "W3G6": { week: 3, type: "schedule", t1: "T10", t2: "T11", s1: null, s2: null, status: "pending" },
+        "W3G7": { week: 3, type: "schedule", t1: "T13", t2: "T16", s1: null, s2: null, status: "pending" },
+        "W3G8": { week: 3, type: "schedule", t1: "T14", t2: "T15", s1: null, s2: null, status: "pending" },
+        "W3G9": { week: 3, type: "schedule", t1: "T17", t2: "T20", s1: null, s2: null, status: "pending" },
+        "W3G10": { week: 3, type: "schedule", t1: "T18", t2: "T19", s1: null, s2: null, status: "pending" },
+        "W3G11": { week: 3, type: "schedule", t1: "T21", t2: "T24", s1: null, s2: null, status: "pending" },
+        "W3G12": { week: 3, type: "schedule", t1: "T22", t2: "T23", s1: null, s2: null, status: "pending" },
+        "W3G13": { week: 3, type: "schedule", t1: "T25", t2: "T28", s1: null, s2: null, status: "pending" },
+        "W3G14": { week: 3, type: "schedule", t1: "T26", t2: "T27", s1: null, s2: null, status: "pending" },
+        "W3G15": { week: 3, type: "schedule", t1: "T29", t2: "T32", s1: null, s2: null, status: "pending" },
+        "W3G16": { week: 3, type: "schedule", t1: "T30", t2: "T31", s1: null, s2: null, status: "pending" },
+        // Week 4 (Conference)
+        "W4G1": { week: 4, type: "schedule", t1: "T1", t2: "T5", s1: null, s2: null, status: "pending" },
+        "W4G2": { week: 4, type: "schedule", t1: "T2", t2: "T6", s1: null, s2: null, status: "pending" },
+        "W4G3": { week: 4, type: "schedule", t1: "T3", t2: "T7", s1: null, s2: null, status: "pending" },
+        "W4G4": { week: 4, type: "schedule", t1: "T4", t2: "T8", s1: null, s2: null, status: "pending" },
+        "W4G5": { week: 4, type: "schedule", t1: "T9", t2: "T13", s1: null, s2: null, status: "pending" },
+        "W4G6": { week: 4, type: "schedule", t1: "T10", t2: "T14", s1: null, s2: null, status: "pending" },
+        "W4G7": { week: 4, type: "schedule", t1: "T11", t2: "T15", s1: null, s2: null, status: "pending" },
+        "W4G8": { week: 4, type: "schedule", t1: "T12", t2: "T16", s1: null, s2: null, status: "pending" },
+        "W4G9": { week: 4, type: "schedule", t1: "T17", t2: "T21", s1: null, s2: null, status: "pending" },
+        "W4G10": { week: 4, type: "schedule", t1: "T18", t2: "T22", s1: null, s2: null, status: "pending" },
+        "W4G11": { week: 4, type: "schedule", t1: "T19", t2: "T23", s1: null, s2: null, status: "pending" },
+        "W4G12": { week: 4, type: "schedule", t1: "T20", t2: "T24", s1: null, s2: null, status: "pending" },
+        "W4G13": { week: 4, type: "schedule", t1: "T25", t2: "T29", s1: null, s2: null, status: "pending" },
+        "W4G14": { week: 4, type: "schedule", t1: "T26", t2: "T30", s1: null, s2: null, status: "pending" },
+        "W4G15": { week: 4, type: "schedule", t1: "T27", t2: "T31", s1: null, s2: null, status: "pending" },
+        "W4G16": { week: 4, type: "schedule", t1: "T28", t2: "T32", s1: null, s2: null, status: "pending" },
+        // Week 5 (Conference)
+        "W5G1": { week: 5, type: "schedule", t1: "T1", t2: "T6", s1: null, s2: null, status: "pending" },
+        "W5G2": { week: 5, type: "schedule", t1: "T2", t2: "T5", s1: null, s2: null, status: "pending" },
+        "W5G3": { week: 5, type: "schedule", t1: "T3", t2: "T8", s1: null, s2: null, status: "pending" },
+        "W5G4": { week: 5, type: "schedule", t1: "T4", t2: "T7", s1: null, s2: null, status: "pending" },
+        "W5G5": { week: 5, type: "schedule", t1: "T9", t2: "T14", s1: null, s2: null, status: "pending" },
+        "W5G6": { week: 5, type: "schedule", t1: "T10", t2: "T13", s1: null, s2: null, status: "pending" },
+        "W5G7": { week: 5, type: "schedule", t1: "T11", t2: "T16", s1: null, s2: null, status: "pending" },
+        "W5G8": { week: 5, type: "schedule", t1: "T12", t2: "T15", s1: null, s2: null, status: "pending" },
+        "W5G9": { week: 5, type: "schedule", t1: "T17", t2: "T22", s1: null, s2: null, status: "pending" },
+        "W5G10": { week: 5, type: "schedule", t1: "T18", t2: "T21", s1: null, s2: null, status: "pending" },
+        "W5G11": { week: 5, type: "schedule", t1: "T19", t2: "T24", s1: null, s2: null, status: "pending" },
+        "W5G12": { week: 5, type: "schedule", t1: "T20", t2: "T23", s1: null, s2: null, status: "pending" },
+        "W5G13": { week: 5, type: "schedule", t1: "T25", t2: "T30", s1: null, s2: null, status: "pending" },
+        "W5G14": { week: 5, type: "schedule", t1: "T26", t2: "T29", s1: null, s2: null, status: "pending" },
+        "W5G15": { week: 5, type: "schedule", t1: "T27", t2: "T32", s1: null, s2: null, status: "pending" },
+        "W5G16": { week: 5, type: "schedule", t1: "T28", t2: "T31", s1: null, s2: null, status: "pending" },
+        // Week 6 (Inter-Conference)
+        "W6G1": { week: 6, type: "schedule", t1: "T1", t2: "T9", s1: null, s2: null, status: "pending" },
+        "W6G2": { week: 6, type: "schedule", t1: "T2", t2: "T10", s1: null, s2: null, status: "pending" },
+        "W6G3": { week: 6, type: "schedule", t1: "T3", t2: "T11", s1: null, s2: null, status: "pending" },
+        "W6G4": { week: 6, type: "schedule", t1: "T4", t2: "T12", s1: null, s2: null, status: "pending" },
+        "W6G5": { week: 6, type: "schedule", t1: "T5", t2: "T13", s1: null, s2: null, status: "pending" },
+        "W6G6": { week: 6, type: "schedule", t1: "T6", t2: "T14", s1: null, s2: null, status: "pending" },
+        "W6G7": { week: 6, type: "schedule", t1: "T7", t2: "T15", s1: null, s2: null, status: "pending" },
+        "W6G8": { week: 6, type: "schedule", t1: "T8", t2: "T16", s1: null, s2: null, status: "pending" },
+        "W6G9": { week: 6, type: "schedule", t1: "T17", t2: "T25", s1: null, s2: null, status: "pending" },
+        "W6G10": { week: 6, type: "schedule", t1: "T18", t2: "T26", s1: null, s2: null, status: "pending" },
+        "W6G11": { week: 6, type: "schedule", t1: "T19", t2: "T27", s1: null, s2: null, status: "pending" },
+        "W6G12": { week: 6, type: "schedule", t1: "T20", t2: "T28", s1: null, s2: null, status: "pending" },
+        "W6G13": { week: 6, type: "schedule", t1: "T21", t2: "T29", s1: null, s2: null, status: "pending" },
+        "W6G14": { week: 6, type: "schedule", t1: "T22", t2: "T30", s1: null, s2: null, status: "pending" },
+        "W6G15": { week: 6, type: "schedule", t1: "T23", t2: "T31", s1: null, s2: null, status: "pending" },
+        "W6G16": { week: 6, type: "schedule", t1: "T24", t2: "T32", s1: null, s2: null, status: "pending" },
+        // Week 7 (Inter-Conference)
+        "W7G1": { week: 7, type: "schedule", t1: "T1", t2: "T17", s1: null, s2: null, status: "pending" },
+        "W7G2": { week: 7, type: "schedule", t1: "T2", t2: "T18", s1: null, s2: null, status: "pending" },
+        "W7G3": { week: 7, type: "schedule", t1: "T3", t2: "T19", s1: null, s2: null, status: "pending" },
+        "W7G4": { week: 7, type: "schedule", t1: "T4", t2: "T20", s1: null, s2: null, status: "pending" },
+        "W7G5": { week: 7, type: "schedule", t1: "T5", t2: "T21", s1: null, s2: null, status: "pending" },
+        "W7G6": { week: 7, type: "schedule", t1: "T6", t2: "T22", s1: null, s2: null, status: "pending" },
+        "W7G7": { week: 7, type: "schedule", t1: "T7", t2: "T23", s1: null, s2: null, status: "pending" },
+        "W7G8": { week: 7, type: "schedule", t1: "T8", t2: "T24", s1: null, s2: null, status: "pending" },
+        "W7G9": { week: 7, type: "schedule", t1: "T9", t2: "T25", s1: null, s2: null, status: "pending" },
+        "W7G10": { week: 7, type: "schedule", t1: "T10", t2: "T26", s1: null, s2: null, status: "pending" },
+        "W7G11": { week: 7, type: "schedule", t1: "T11", t2: "T27", s1: null, s2: null, status: "pending" },
+        "W7G12": { week: 7, type: "schedule", t1: "T12", t2: "T28", s1: null, s2: null, status: "pending" },
+        "W7G13": { week: 7, type: "schedule", t1: "T13", t2: "T29", s1: null, s2: null, status: "pending" },
+        "W7G14": { week: 7, type: "schedule", t1: "T14", t2: "T30", s1: null, s2: null, status: "pending" },
+        "W7G15": { week: 7, type: "schedule", t1: "T15", t2: "T31", s1: null, s2: null, status: "pending" },
+        "W7G16": { week: 7, type: "schedule", t1: "T16", t2: "T32", s1: null, s2: null, status: "pending" },
+        // Week 8 (Inter-Conference)
+        "W8G1": { week: 8, type: "schedule", t1: "T1", t2: "T25", s1: null, s2: null, status: "pending" },
+        "W8G2": { week: 8, type: "schedule", t1: "T2", t2: "T26", s1: null, s2: null, status: "pending" },
+        "W8G3": { week: 8, type: "schedule", t1: "T3", t2: "T27", s1: null, s2: null, status: "pending" },
+        "W8G4": { week: 8, type: "schedule", t1: "T4", t2: "T28", s1: null, s2: null, status: "pending" },
+        "W8G5": { week: 8, type: "schedule", t1: "T5", t2: "T29", s1: null, s2: null, status: "pending" },
+        "W8G6": { week: 8, type: "schedule", t1: "T6", t2: "T30", s1: null, s2: null, status: "pending" },
+        "W8G7": { week: 8, type: "schedule", t1: "T7", t2: "T31", s1: null, s2: null, status: "pending" },
+        "W8G8": { week: 8, type: "schedule", t1: "T8", t2: "T32", s1: null, s2: null, status: "pending" },
+        "W8G9": { week: 8, type: "schedule", t1: "T9", t2: "T17", s1: null, s2: null, status: "pending" },
+        "W8G10": { week: 8, type: "schedule", t1: "T10", t2: "T18", s1: null, s2: null, status: "pending" },
+        "W8G11": { week: 8, type: "schedule", t1: "T11", t2: "T19", s1: null, s2: null, status: "pending" },
+        "W8G12": { week: 8, type: "schedule", t1: "T12", t2: "T20", s1: null, s2: null, status: "pending" },
+        "W8G13": { week: 8, type: "schedule", t1: "T13", t2: "T21", s1: null, s2: null, status: "pending" },
+        "W8G14": { week: 8, type: "schedule", t1: "T14", t2: "T22", s1: null, s2: null, status: "pending" },
+        "W8G15": { week: 8, type: "schedule", t1: "T15", t2: "T23", s1: null, s2: null, status: "pending" },
+        "W8G16": { week: 8, type: "schedule", t1: "T16", t2: "T24", s1: null, s2: null, status: "pending" },
+    },
+    tiebreakers: {
+        "TB1": { name: "Tie-Breaker Game 1", type: "tiebreaker", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+        "TB2": { name: "Tie-Breaker Game 2", type: "tiebreaker", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+        "TB3": { name: "Tie-Breaker Game 3", type: "tiebreaker", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+        "TB4": { name: "Tie-Breaker Game 4", type: "tiebreaker", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+    },
+    playoffs: {
+        "C-American": {
+            "A-SF1": { name: "American SF 1", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "A-SF2": { name: "American SF 2", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "A-F":   { name: "American Final", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+        },
+        "C-National": {
+            "N-SF1": { name: "National SF 1", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "N-SF2": { name: "National SF 2", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "N-F":   { name: "National Final", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+        },
+        "C-Empire": {
+            "E-SF1": { name: "Empire SF 1", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "E-SF2": { name: "Empire SF 2", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "E-F":   { name: "Empire Final", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+        },
+        "C-Plasma": {
+            "P-SF1": { name: "Plasma SF 1", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "P-SF2": { name: "Plasma SF 2", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "P-F":   { name: "Plasma Final", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+        },
+        "WildBowl": {
+            "W-SF1": { name: "Wild Bowl SF 1", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "W-SF2": { name: "Wild Bowl SF 2", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "W-F":   { name: "Wild Bowl Final", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" },
+            "W-3RD": { name: "Wild Bowl 3rd Place", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+        },
+        "ProBowl": {
+            "PB-G": { name: "Pro Bowl", type: "playoff", t1: "TBD", t2: "TBD", s1: null, s2: null, status: "pending" }
+        },
+        "InfinityBowl": {
+            "I-SF1": { name: "Infinity Bowl SF 1", type: "playoff", t1: null, t2: "TBD", s1: null, s2: null, status: "pending" }, // Wild Bowl Champ vs TBD
+            "I-SF2": { name: "Infinity Bowl SF 2", type: "playoff", t1: "TBD", t2: "TBD", s1: null, s2: null, status: "pending" }, // TBD vs TBD
+            "I-F":   { name: "Infinity Bowl Final", type: "playoff", t1: null, t2: null, s1: null, s2: null, status: "pending" }
+        }
+    },
+    history: []
+};
+
+// --- GLOBAL STATE ---
+let activeTab = 'tab-teams';
+const conferenceMap = {
+    "C-American": { name: "C-American", divisions: ["C-American North", "C-American South"] },
+    "C-National": { name: "C-National", divisions: ["C-National North", "C-National South"] },
+    "C-Empire":   { name: "C-Empire",   divisions: ["C-Empire North", "C-Empire South"] },
+    "C-Plasma":   { name: "C-Plasma",   divisions: ["C-Plasma North", "C-Plasma South"] }
+};
+const conferenceOrder = ["C-American", "C-National", "C-Empire", "C-Plasma"];
+const divisionOrder = ["C-American North", "C-American South", "C-National North", "C-National South", "C-Empire North", "C-Empire South", "C-Plasma North", "C-Plasma South"];
+const maxWeeks = 8;
+const playoffBracketConnectors = {};
+
+// --- UTILITY FUNCTIONS ---
+
+/**
+ * Checks if a value is a plain object.
+ */
+const isObject = (val) => val && typeof val === 'object' && !Array.isArray(val);
+
+/**
+ * **NEW "Bulletproof" Deep Merge Function**
+ * This function safely merges a 'source' (saved) object into a 'target' (default) object.
+ * It is designed to PREVENT crashes from 'null' values in the saved data.
+ * It PRIORITIZES the default data structure.
+ */
+const deepMerge = (target, source) => {
+    // Create a new object based on the target (default data)
+    // This ensures all keys from the default data are present.
+    const output = { ...target };
+
+    // If source is not an object (e.g., null, undefined, primitive),
+    // we can't merge it, so we return the target.
+    if (!isObject(source)) {
+        return output;
+    }
+
+    // Iterate over the keys in the source (saved data)
+    Object.keys(source).forEach(key => {
+        const targetVal = target[key];
+        const sourceVal = source[key];
+
+        if (sourceVal === null || sourceVal === undefined) {
+            // **CRITICAL FIX:**
+            // The saved data has 'null' or 'undefined' for this key.
+            // DO NOT assign it. We keep the default value from 'target'.
+            // 'output[key]' already has the correct 'targetVal'.
+            // So, we just do nothing here.
+            
+            // If the key doesn't even exist in the target, we still don't add it.
+            // But 'output' is a clone of 'target', so 'output[key]' will be 'targetVal'
+            // (which might be 'undefined', and that's fine).
+            if (target.hasOwnProperty(key)) {
+                output[key] = targetVal;
+            }
+            // If key is not in target, it's an old key, we discard it.
+            
+        } else if (isObject(targetVal) && isObject(sourceVal)) {
+            // Both are objects. Recurse to merge them.
+            output[key] = deepMerge(targetVal, sourceVal);
+        } else {
+            // Source has a valid value (primitive, array, or object that's not in target).
+            // We assign it. This is how saved data is loaded.
+            output[key] = sourceVal;
+        }
+    });
+    
+    // Return the safely merged object.
+    return output;
+};
+
+
+/**
+ * Saves the current state of the 'db' object to localStorage.
+ */
+function saveData() {
+    try {
+        db.version = CURRENT_APP_VERSION; // Ensure version is up-to-date
+        const dataString = JSON.stringify(db);
+        localStorage.setItem(DB_STORAGE_KEY, dataString);
+        console.log('Data saved successfully.');
+        // Show a temporary success message (optional)
+        const saveBtn = document.getElementById('btn-save');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = 'Saved!';
+        saveBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+        saveBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        setTimeout(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            saveBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 1500);
+    } catch (error) {
+        console.error('Failed to save data:', error);
+        showErrorModal('Failed to save data. The league data might be too large or corrupted.', error);
+    }
+}
+
+/**
+ * **NEW "Bulletproof" Data Loader**
+ * Loads data from localStorage and safely merges it with the default 'db' object.
+ * This prevents crashes from old/corrupted save data.
+ */
+function loadData() {
+    const savedString = localStorage.getItem(DB_STORAGE_KEY);
+    
+    // 1. Start with the default 'db' object (our source of truth).
+    // We make a copy to avoid mutating the original defaultDB.
+    const defaultDB = JSON.parse(JSON.stringify(db)); 
+    
+    if (!savedString) {
+        console.log('No saved data found. Using default DB.');
+        return; // 'db' already contains the defaults
+    }
+
+    let savedData;
+    try {
+        savedData = JSON.parse(savedString);
+    } catch (parseError) {
+        console.error('Failed to parse saved data. Using default DB.', parseError);
+        // Data is corrupted. We'll just use the defaults.
+        return; 
+    }
+
+    // 2. Check for version mismatch.
+    // If versions don't match, it's safer to merge.
+    if (!savedData.version || savedData.version !== CURRENT_APP_VERSION) {
+        console.warn(`Version mismatch. Saved: ${savedData.version}, Current: ${CURRENT_APP_VERSION}. Attempting to merge...`);
+    }
+
+    // 3. **Perform the safe deep merge.**
+    // 'db' (default) is the target, 'savedData' is the source.
+    // This will overlay saved data onto the default structure,
+    // and the new 'deepMerge' will protect against 'null' crashes.
+    try {
+        db = deepMerge(defaultDB, savedData);
+        // Ensure the version is updated after the merge.
+        db.version = CURRENT_APP_VERSION;
+    } catch (mergeError) {
+        console.error('A critical error occurred during data merge. Using default data to prevent crash.', mergeError);
+        showErrorModal('Your saved data could not be loaded and may be corrupted. Loading default data to prevent a crash.', mergeError);
+        // If the merge itself fails, fall back to default data.
+        db = defaultDB;
+    }
+}
+
+/**
+ * Gets a team object by its ID.
+ */
+function getTeam(teamId) {
+    return db.teams[teamId] || null;
+}
+
+/**
+ * Gets a game object by its ID from any game list.
+ */
+function getGame(gameId) {
+    if (db.schedule[gameId]) {
+        return db.schedule[gameId];
+    }
+    if (db.tiebreakers[gameId]) {
+        return db.tiebreakers[gameId];
+    }
+    for (const conf in db.playoffs) {
+        if (db.playoffs[conf][gameId]) {
+            return db.playoffs[conf][gameId];
+        }
+    }
+    return null;
+}
+
+/**
+ * Calculates wins, losses, and ties for a team.
+ */
+function getTeamRecord(teamId) {
+    let wins = 0;
+    let losses = 0;
+    let ties = 0;
+    const allGames = { ...db.schedule, ...db.tiebreakers };
+
+    for (const gameId in allGames) {
+        const game = allGames[gameId];
+        if (game.status !== 'final' || (game.t1 !== teamId && game.t2 !== teamId)) {
+            continue;
+        }
+
+        const score1 = game.s1;
+        const score2 = game.s2;
+
+        if (score1 === null || score2 === null) continue;
+
+        if (game.t1 === teamId) {
+            if (score1 > score2) wins++;
+            else if (score1 < score2) losses++;
+            else ties++;
+        } else if (game.t2 === teamId) {
+            if (score2 > score1) wins++;
+            else if (score2 < score1) losses++;
+            else ties++;
+        }
+    }
+    return { id: teamId, ...getTeam(teamId), wins, losses, ties };
+}
+
+/**
+ * Calculates standings for all teams.
+ */
+function getStandings() {
+    const standings = {
+        league: [],
+        conferences: {},
+        divisions: {}
+    };
+
+    // Initialize containers
+    for (const confId in conferenceMap) {
+        standings.conferences[confId] = [];
+        conferenceMap[confId].divisions.forEach(divName => {
+            standings.divisions[divName] = [];
+        });
+    }
+
+    // Calculate records
+    for (const teamId in db.teams) {
+        const record = getTeamRecord(teamId);
+        standings.league.push(record);
+        standings.conferences[record.conference].push(record);
+        standings.divisions[record.division].push(record);
+    }
+
+    // Sort function for standings
+    const sortStandings = (a, b) => {
+        // 1. Wins (descending)
+        if (a.wins !== b.wins) return b.wins - a.wins;
+        // 2. Losses (ascending)
+        if (a.losses !== b.losses) return a.losses - b.losses;
+        // 3. Ties (descending)
+        if (a.ties !== b.ties) return b.ties - a.ties;
+        // 4. Team Name (alphabetical)
+        return a.name.localeCompare(b.name);
+    };
+
+    // Sort all lists
+    standings.league.sort(sortStandings);
+    for (const confId in standings.conferences) {
+        standings.conferences[confId].sort(sortStandings);
+    }
+    for (const divName in standings.divisions) {
+        standings.divisions[divName].sort(sortStandings);
+    }
+
+    return standings;
+}
+
+/**
+ * Gets the winner and loser of a specific game.
+ */
+function getGameResult(game) {
+    if (!game || game.status !== 'final' || game.s1 === null || game.s2 === null) {
+        return { winner: null, loser: null };
+    }
+    if (game.s1 > game.s2) {
+        return { winner: game.t1, loser: game.t2 };
+    } else if (game.s2 > game.s1) {
+        return { winner: game.t2, loser: game.t1 };
+    } else {
+        return { winner: null, loser: null }; // Tie
+    }
+}
+
+// --- RENDER FUNCTIONS (DOM) ---
+
+/**
+ * Main render function to update the entire UI.
+ */
+function renderAll() {
+    try {
+        renderTeamLists();
+        renderStandings();
+        renderSchedule();
+        renderTiebreakers();
+        renderPlayoffBrackets();
+        renderScoreboards();
+        renderSeasonHistory();
+        
+        // After rendering, draw SVG connectors for playoffs
+        // Clear old ones first
+        document.querySelectorAll('.game-connector-wrapper').forEach(wrapper => wrapper.remove());
+        // Draw new ones
+        Object.keys(playoffBracketConnectors).forEach(bracketId => {
+            drawBracketConnectors(bracketId);
+        });
+
+    } catch (renderError) {
+        console.error('A critical error occurred during render:', renderError);
+        showErrorModal('An unexpected error occurred while trying to display the league data. The data may be in an inconsistent state.', renderError);
+    }
+}
+
+/**
+ * Renders the team lists on the 'Teams' tab.
+ */
+function renderTeamLists() {
+    const container = document.getElementById('team-list-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (const confId of conferenceOrder) {
+        const conf = conferenceMap[confId];
+        const confEl = document.createElement('div');
+        confEl.className = 'bg-slate-800 rounded-lg shadow-lg overflow-hidden';
+        confEl.innerHTML = `<h3 class="text-xl font-bold text-white p-4 bg-slate-700/50">${conf.name}</h3>`;
+        
+        const divisionsContainer = document.createElement('div');
+        divisionsContainer.className = 'p-4 space-y-4';
+        
+        conf.divisions.forEach(divName => {
+            const divEl = document.createElement('div');
+            divEl.innerHTML = `<h4 class="text-lg font-semibold text-slate-300 mb-2">${divName}</h4>`;
+            
+            const teamListEl = document.createElement('ul');
+            teamListEl.className = 'space-y-2';
+            
+            const teamsInDivision = Object.entries(db.teams)
+                .filter(([id, team]) => team.conference === confId && team.division === divName)
+                .map(([id, team]) => ({ id, ...team }));
+
+            teamsInDivision.forEach(team => {
+                const teamEl = document.createElement('li');
+                teamEl.className = 'flex items-center justify-between p-4 rounded-md bg-slate-700/50 hover:bg-slate-700 transition-colors';
+                teamEl.innerHTML = `
+                    <div class="flex items-center gap-4 min-w-0">
+                        <img src="${team.logo || `https://placehold.co/64x64/0F172A/E2E8F0?text=${team.name.charAt(0)}`}" alt="${team.name} logo" class="w-16 h-16 rounded-full object-contain bg-slate-900" onerror="this.src='https://placehold.co/64x64/0F172A/E2E8F0?text=${team.name.charAt(0)}'">
+                        <span class="text-lg font-medium text-slate-200 truncate" title="${team.name}">${team.name}</span>
+                    </div>
+                    <button class="btn-edit-team text-slate-400 hover:text-white" data-team-id="${team.id}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/>
+                        </svg>
+                    </button>
+                `;
+                teamListEl.appendChild(teamEl);
+            });
+            
+            divEl.appendChild(teamListEl);
+            divisionsContainer.appendChild(divEl);
+        });
+        
+        confEl.appendChild(divisionsContainer);
+        container.appendChild(confEl);
+    }
+}
+
+/**
+ * Renders the standings on the 'Standings' tab.
+ */
+function renderStandings() {
+    const container = document.getElementById('tab-standings');
+    if (!container) return;
+    container.innerHTML = ''; // Clear previous content
+    
+    const standings = getStandings();
+
+    // 1. League Standings
+    container.appendChild(createStandingsTable(
+        "League Standings (All Teams)",
+        standings.league,
+        ['Rank', 'Team', 'W', 'L', 'T']
+    ));
+
+    // 2. Conference Standings
+    const confContainer = document.createElement('div');
+    confContainer.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6';
+    for (const confId of conferenceOrder) {
+        confContainer.appendChild(createStandingsTable(
+            `${conferenceMap[confId].name} Standings`,
+            standings.conferences[confId],
+            ['Rank', 'Team', 'W', 'L', 'T']
+        ));
+    }
+    container.appendChild(confContainer);
+
+    // 3. Division Standings
+    const divContainer = document.createElement('div');
+    divContainer.className = 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6';
+    for (const divName of divisionOrder) {
+        divContainer.appendChild(createStandingsTable(
+            `${divName}`, // Title is now the full division name
+            standings.divisions[divName],
+            ['Rank', 'Team', 'W', 'L', 'T']
+        ));
+    }
+    container.appendChild(divContainer);
+}
+
+/**
+ * Helper to create a single standings table.
+ */
+function createStandingsTable(title, teams, headers) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'bg-slate-800 rounded-lg shadow-lg overflow-hidden';
+    
+    let headerHtml = headers.map(h => `<th class="p-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">${h}</th>`).join('');
+    
+    let bodyHtml = teams.map((team, index) => {
+        return `
+            <tr class="border-t border-slate-700 hover:bg-slate-700/50">
+                <td class="p-3 whitespace-nowrap text-slate-300">${index + 1}</td>
+                <td class="p-3 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                        <img src="${team.logo || `https://placehold.co/24x24/0F172A/E2E8F0?text=${team.name.charAt(0)}`}" alt="${team.name} logo" class="w-6 h-6 rounded-full object-cover" onerror="this.src='https://placehold.co/24x24/0F172A/E2E8F0?text=${team.name.charAt(0)}'">
+                        <span class="font-medium text-slate-200 truncate" title="${team.name}">${team.name}</span>
+                    </div>
+                </td>
+                <td class="p-3 whitespace-nowrap text-slate-300">${team.wins}</td>
+                <td class="p-3 whitespace-nowrap text-slate-300">${team.losses}</td>
+                <td class="p-3 whitespace-nowrap text-slate-300">${team.ties}</td>
+            </tr>
+        `;
+    }).join('');
+
+    tableContainer.innerHTML = `
+        <h3 class="text-xl font-bold text-white p-4">${title}</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>${headerHtml}</tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    ${bodyHtml || `<tr><td colspan="${headers.length}" class="p-4 text-center text-slate-400">No teams found.</td></tr>`}
+                </tbody>
+            </table>
+        </div>
+    `;
+    return tableContainer;
+}
+
+/**
+ * Renders the regular season schedule on its tab.
+ */
+function renderSchedule() {
+    const container = document.getElementById('schedule-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    for (let i = 1; i <= maxWeeks; i++) {
+        const weekEl = document.createElement('div');
+        weekEl.className = 'bg-slate-800 rounded-lg shadow-lg';
+        weekEl.innerHTML = `<h3 class="text-xl font-bold text-white p-4 bg-slate-700/50 rounded-t-lg">Week ${i}</h3>`;
+        
+        const gamesContainer = document.createElement('div');
+        gamesContainer.className = 'p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+        
+        const games = Object.entries(db.schedule).filter(([id, game]) => game.week === i);
+        
+        if (games.length === 0) {
+            gamesContainer.innerHTML = `<p class="text-slate-400">No games scheduled for this week.</p>`;
+        } else {
+            games.forEach(([id, game]) => {
+                gamesContainer.appendChild(createScheduleGameRow('schedule', id, game));
+            });
+        }
+        
+        weekEl.appendChild(gamesContainer);
+        container.appendChild(weekEl);
+    }
+}
+
+/**
+ * Renders the tie-breaker games on their tab.
+ */
+function renderTiebreakers() {
+    const container = document.getElementById('tiebreaker-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const gamesContainer = document.createElement('div');
+    gamesContainer.className = 'p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-800 rounded-lg shadow-lg';
+    
+    const games = Object.entries(db.tiebreakers);
+
+    if (games.length === 0) {
+        gamesContainer.innerHTML = `<p class="text-slate-400">No tie-breaker games.</p>`;
+    } else {
+        games.forEach(([id, game]) => {
+            // Manually add teams to tie-breaker games
+            if (!game.t1) game.t1 = "TBD";
+            if (!game.t2) game.t2 = "TBD";
+            gamesContainer.appendChild(createScheduleGameRow('tiebreaker', id, game));
+        });
+    }
+    
+    container.appendChild(gamesContainer);
+}
+
+/**
+ * Helper to create a single game row for Schedule or Tiebreakers.
+ */
+function createScheduleGameRow(type, gameId, game) {
+    const gameRow = document.createElement('div');
+    gameRow.className = 'game-row bg-slate-700/50 rounded-lg p-3 flex items-center justify-between gap-2';
+
+    const team1 = getTeam(game.t1) || { name: "TBD", logo: "" };
+    const team2 = getTeam(game.t2) || { name: "TBD", logo: "" };
+    
+    const score1 = game.s1 ?? '-';
+    const score2 = game.s2 ?? '-';
+    
+    let team1Classes = 'font-medium text-slate-300';
+    let team2Classes = 'font-medium text-slate-300';
+    if (game.status === 'final') {
+        if (score1 > score2) team1Classes = 'font-bold text-white';
+        else if (score2 > score1) team2Classes = 'font-bold text-white';
+    }
+
+    gameRow.innerHTML = `
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <img src="${team1.logo || `https://placehold.co/20x20/0F172A/E2E8F0?text=${team1.name.charAt(0)}`}" alt="${team1.name} logo" class="w-5 h-5 rounded-full object-cover flex-shrink-0" onerror="this.src='https://placehold.co/20x20/0F172A/E2E8F0?text=${team1.name.charAt(0)}'">
+                    <span class="${team1Classes} truncate" title="${team1.name}">${team1.name}</span>
+                </div>
+                <span class="${team1Classes} text-lg">${score1}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 mt-1">
+                <div class="flex items-center gap-2 min-w-0">
+                    <img src="${team2.logo || `https://placehold.co/20x20/0F172A/E2E8F0?text=${team2.name.charAt(0)}`}" alt="${team2.name} logo" class="w-5 h-5 rounded-full object-cover flex-shrink-0" onerror="this.src='https://placehold.co/20x20/0F172A/E2E8F0?text=${team2.name.charAt(0)}'">
+                    <span class="${team2Classes} truncate" title="${team2.name}">${team2.name}</span>
+                </div>
+                <span class="${team2Classes} text-lg">${score2}</span>
+            </div>
+        </div>
+        <button class="btn-edit-score text-slate-400 hover:text-white flex-shrink-0" data-game-id="${gameId}" data-game-type="${type}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/>
+            </svg>
+        </button>
+    `;
+    return gameRow;
+}
+
+/**
+ * Renders all playoff brackets on the 'Playoffs' tab.
+ */
+function renderPlayoffBrackets() {
+    const container = document.getElementById('playoff-brackets-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    // Define the brackets and their order
+    const brackets = [
+        { id: "C-American",   title: "C-American Championship",   rounds: [ { id: "sf", games: ["A-SF1", "A-SF2"] }, { id: "f", games: ["A-F"] } ] },
+        { id: "C-National",   title: "C-National Championship",   rounds: [ { id: "sf", games: ["N-SF1", "N-SF2"] }, { id: "f", games: ["N-F"] } ] },
+        { id: "C-Empire",     title: "C-Empire Championship",     rounds: [ { id: "sf", games: ["E-SF1", "E-SF2"] }, { id: "f", games: ["E-F"] } ] },
+        { id: "C-Plasma",     title: "C-Plasma Championship",     rounds: [ { id: "sf", games: ["P-SF1", "P-SF2"] }, { id: "f", games: ["P-F"] } ] },
+        { id: "WildBowl",     title: "Wild Bowl",                 rounds: [ { id: "sf", games: ["W-SF1", "W-SF2"] }, { id: "f", games: ["W-F"] }, { id: "3rd", games: ["W-3RD"] } ] },
+        { id: "ProBowl",      title: "Pro Bowl",                  rounds: [ { id: "f", games: ["PB-G"] } ] },
+        { id: "InfinityBowl", title: "Infinity Bowl",             rounds: [ { id: "sf", games: ["I-SF1", "I-SF2"] }, { id: "f", games: ["I-F"] } ] },
+    ];
+
+    brackets.forEach(bracketInfo => {
+        // **Safety Check:** Ensure the playoff conference (e.g., db.playoffs['C-American']) exists.
+        // This prevents crashes if `db.playoffs` is null or corrupted.
+        if (!db.playoffs || !db.playoffs[bracketInfo.id]) {
+            console.error(`Playoff data for ${bracketInfo.id} is missing. Skipping render.`);
+            return; // Skip this bracket
+        }
+
+        const bracketContainer = document.createElement('div');
+        bracketContainer.className = 'bg-slate-800 rounded-lg shadow-lg overflow-hidden';
+        bracketContainer.innerHTML = `<h3 class="text-xl font-bold text-white p-4">${bracketInfo.title}</h3>`;
+        
+        const bracketEl = document.createElement('div');
+        bracketEl.className = 'bracket';
+        bracketEl.id = `bracket-${bracketInfo.id}`;
+        playoffBracketConnectors[bracketEl.id] = []; // Reset connectors
+
+        bracketInfo.rounds.forEach((round, roundIndex) => {
+            const roundEl = document.createElement('div');
+            roundEl.className = `round round-${roundIndex + 1}`;
+            
+            if (round.games.length === 1) {
+                if(round.id === '3rd') {
+                    roundEl.classList.add('round-3rd-place');
+                } else {
+                    roundEl.classList.add('round-final');
+                }
+            }
+            if (bracketInfo.id === 'ProBowl') {
+                roundEl.classList.add('round-pro-bowl');
+            }
+
+            round.games.forEach(gameId => {
+                // **Safety Check:** Ensure the game (e.g., db.playoffs['C-American']['A-SF1']) exists.
+                const gameData = db.playoffs[bracketInfo.id][gameId];
+                if (!gameData) {
+                    console.error(`Playoff game data for ${gameId} in ${bracketInfo.id} is missing. Skipping game.`);
+                    return; // Skip this game
+                }
+                
+                const gameEl = createPlayoffGameElement(gameId, gameData);
+                roundEl.appendChild(gameEl);
+                
+                // Store element for connector drawing
+                playoffBracketConnectors[bracketEl.id].push({
+                    id: gameId,
+                    el: gameEl,
+                    round: roundIndex
+                });
+            });
+            bracketEl.appendChild(roundEl);
+        });
+        
+        bracketContainer.appendChild(bracketEl);
+        container.appendChild(bracketContainer);
+    });
+}
+
+/**
+ * Helper to create a single playoff game element.
+ */
+function createPlayoffGameElement(gameId, game) {
+    const gameEl = document.createElement('div');
+    gameEl.className = 'game';
+    gameEl.id = `game-${gameId}`;
+
+    const team1 = getTeam(game.t1) || { name: game.t1 || "TBD" }; // Handle 'TBD' strings
+    const team2 = getTeam(game.t2) || { name: game.t2 || "TBD" };
+
+    const score1 = game.s1 ?? '';
+    const score2 = game.s2 ?? '';
+    
+    let team1Classes = 'team';
+    let team2Classes = 'team';
+    
+    if (game.status === 'final') {
+        if (score1 > score2) team1Classes += ' winner';
+        else if (score2 > score1) team2Classes += ' winner';
+    }
+    
+    if (team1.name === "TBD") team1Classes += ' tbd';
+    if (team2.name === "TBD") team2Classes += ' tbd';
+    
+    // Hide edit button if either team is TBD
+    const teamsTbdClass = (team1.name === 'TBD' || team2.name === 'TBD') ? 'teams-tbd' : '';
+    gameEl.classList.add(teamsTbdClass);
+
+    gameEl.innerHTML = `
+        <div class="${team1Classes}">
+            <span class="team-name" title="${team1.name}">${team1.name}</span>
+            <span class="team-score">${score1}</span>
+        </div>
+        <div class="${team2Classes}">
+            <span class="team-name" title="${team2.name}">${team2.name}</span>
+            <span class="team-score">${score2}</span>
+        </div>
+        <div class="game-meta">${game.name}</div>
+        <button class="btn-edit-score-playoff text-slate-300 hover:text-white" data-game-id="${gameId}" data-game-type="playoff">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>
+        </button>
+    `;
+    return gameEl;
+}
+
+/**
+ * Draws SVG connectors for playoff brackets.
+ */
+function drawBracketConnectors(bracketId) {
+    const bracket = document.getElementById(bracketId);
+    if (!bracket) return;
+    
+    const games = playoffBracketConnectors[bracketId];
+    if (!games) return;
+
+    const roundMap = {};
+    games.forEach(game => {
+        if (!roundMap[game.round]) roundMap[game.round] = [];
+        roundMap[game.round].push(game.el);
+    });
+
+    const numRounds = Object.keys(roundMap).length;
+
+    for (let i = 0; i < numRounds - 1; i++) {
+        const currentRoundGames = roundMap[i];
+        const nextRoundGames = roundMap[i + 1];
+        
+        if (!currentRoundGames || !nextRoundGames) continue;
+
+        // Connect pairs of games from current round to one game in next round
+        for (let j = 0; j < nextRoundGames.length; j++) {
+            const game1 = currentRoundGames[j * 2];
+            const game2 = currentRoundGames[(j * 2) + 1];
+            const nextGame = nextRoundGames[j];
+            
+            if (!game1 || !nextGame) continue; // Skip if games don't exist (e.g., 3rd place)
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'game-connector-wrapper';
+            
+            // Adjust wrapper height to span both games
+            const topGame = game1;
+            const bottomGame = game2 || game1; // Handle single game feeding in
+            
+            const bracketTop = bracket.offsetTop;
+            const top = topGame.offsetTop - bracketTop;
+            const height = (bottomGame.offsetTop + bottomGame.offsetHeight) - topGame.offsetTop;
+            
+            wrapper.style.top = `${top}px`;
+            wrapper.style.height = `${height}px`;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', '50');
+            svg.setAttribute('height', height);
+            svg.style.position = 'absolute';
+
+            const g1_y = (game1.offsetTop + game1.offsetHeight / 2) - top;
+            const next_y = (nextGame.offsetTop + nextGame.offsetHeight / 2) - top;
+
+            // Line from game 1
+            let pathData = `M 0 ${g1_y} H 25 `;
+            
+            if (game2) {
+                // Two games feeding into one
+                const g2_y = (game2.offsetTop + game2.offsetHeight / 2) - top;
+                // Line from game 2
+                pathData += `M 0 ${g2_y} H 25 `;
+                // Vertical line
+                pathData += `M 25 ${g1_y} V ${g2_y} `;
+                // Connector to next game
+                pathData += `M 25 ${next_y} H 50`;
+            } else {
+                // One game feeding into one
+                pathData += `V ${next_y} H 50`;
+            }
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', pathData);
+            path.setAttribute('class', 'game-connector-line');
+            
+            svg.appendChild(path);
+            wrapper.appendChild(svg);
+            topGame.parentElement.appendChild(wrapper); // Append to round
+        }
+    }
+}
+
+
+/**
+ * Renders the live scoreboards on its tab.
+ */
+function renderScoreboards() {
+    const container = document.getElementById('live-scores-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const allGames = { ...db.schedule, ...db.tiebreakers };
+    for (const conf in db.playoffs) {
+        // **Safety Check:** Ensure db.playoffs[conf] is a valid object
+        if (isObject(db.playoffs[conf])) {
+            Object.assign(allGames, db.playoffs[conf]);
+        }
+    }
+
+    const gamesInProgress = Object.entries(allGames).filter(([id, game]) => {
+        return game.status === 'pending' && (game.s1 !== null || game.s2 !== null);
+    });
+
+    if (gamesInProgress.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 col-span-full">No games currently in progress.</p>';
+        return;
+    }
+
+    gamesInProgress.forEach(([id, game]) => {
+        let gameType;
+        if (db.schedule[id]) gameType = 'schedule';
+        else if (db.tiebreakers[id]) gameType = 'tiebreaker';
+        else gameType = 'playoff';
+        
+        container.appendChild(createScheduleGameRow(gameType, id, game));
+    });
+    
+    // **CRITICAL FIX:** Re-attach listeners for the buttons just created.
+    container.querySelectorAll('.btn-edit-score').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const gameId = e.currentTarget.dataset.gameId;
+            const gameType = e.currentTarget.dataset.gameType;
+            openEditScoreModal(gameType, gameId);
+        });
+    });
+}
+
+/**
+ * Renders the season history on its tab.
+ */
+function renderSeasonHistory() {
+    const container = document.getElementById('season-history-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (db.history.length === 0) {
+        container.innerHTML = '<p class="text-slate-400">No seasons have been saved to history.</p>';
+        return;
+    }
+    
+    // Show most recent first
+    db.history.slice().reverse().forEach((season, index) => {
+        const seasonId = `season-${db.history.length - 1 - index}`;
+        const champions = season.champions;
+        
+        const seasonEl = document.createElement('div');
+        seasonEl.className = 'bg-slate-800 rounded-lg shadow-lg';
+        
+        seasonEl.innerHTML = `
+            <div class="p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-white">${season.name}</h3>
+                    <span class="text-sm text-slate-400">${new Date(season.date).toLocaleDateString()}</span>
+                </div>
+                
+                <h4 class="text-lg font-semibold text-slate-300 mb-2">Champions</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    ${createChampionChip(champions.american, 'C-American')}
+                    ${createChampionChip(champions.national, 'C-National')}
+                    ${createChampionChip(champions.empire, 'C-Empire')}
+                    ${createChampionChip(champions.plasma, 'C-Plasma')}
+                    ${createChampionChip(champions.wildBowl, 'Wild Bowl')}
+                    ${createChampionChip(champions.proBowl, 'Pro Bowl')}
+                    ${createChampionChip(champions.infinityBowl, 'Infinity Bowl')}
+                </div>
+                
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button class="btn-toggle-history bg-slate-700 hover:bg-slate-600 text-sm text-slate-300 py-1 px-3 rounded-full" data-target="${seasonId}-standings">Standings</button>
+                    <button class="btn-toggle-history bg-slate-700 hover:bg-slate-600 text-sm text-slate-300 py-1 px-3 rounded-full" data-target="${seasonId}-schedule">Regular Season</button>
+                    <button class="btn-toggle-history bg-slate-700 hover:bg-slate-600 text-sm text-slate-300 py-1 px-3 rounded-full" data-target="${seasonId}-playoffs">Playoffs</button>
+                    <button class="btn-delete-history bg-red-800 hover:bg-red-700 text-sm text-red-200 py-1 px-3 rounded-full ml-auto" data-index="${db.history.length - 1 - index}">Delete</button>
+                </div>
+            </div>
+            
+            <!-- Collapsible Content -->
+            <div id="${seasonId}-standings" class="history-content hidden p-4 border-t border-slate-700 space-y-4">
+                ${createHistoryStandings(season.standings)}
+            </div>
+            <div id="${seasonId}-schedule" class="history-content hidden p-4 border-t border-slate-700 space-y-4">
+                ${createHistorySchedule(season.schedule, season.tiebreakers, season.teams)}
+            </div>
+            <div id="${seasonId}-playoffs" class="history-content hidden p-4 border-t border-slate-700">
+                ${createHistoryPlayoffs(season.playoffs, season.teams)}
+            </div>
+        `;
+        container.appendChild(seasonEl);
+    });
+}
+
+function createChampionChip(teamId, title) {
+    // This function will be called by renderSeasonHistory,
+    // which gets the *archived* 'db.teams' from the season, not the current one.
+    // So, we must find the team in the *current* db to get its name/logo.
+    // ...wait, no. The *archived* data should be self-contained.
+    // Let's assume renderSeasonHistory passes the *archived* teams map.
+    
+    // Ah, the archive doesn't save the full team map. It just saves the ID.
+    // We should look up from the *current* db.
+    const team = getTeam(teamId) || { name: teamId || "TBD", logo: "" };
+    
+    if (team.name === "TBD") {
+        return `
+        <div class="flex items-center gap-2 bg-slate-700/50 p-2 rounded-md">
+            <span class="text-xs text-slate-400">${title}:</span>
+            <span class="font-medium text-slate-500">TBD</span>
+        </div>
+        `;
+    }
+    
+    return `
+        <div class="flex items-center gap-2 bg-slate-700/50 p-2 rounded-md min-w-0">
+            <span class="text-xs text-slate-400">${title}:</span>
+            <img src="${team.logo || `https://placehold.co/16x16/0F172A/E2E8F0?text=${team.name.charAt(0)}`}" alt="${team.name} logo" class="w-4 h-4 rounded-full object-cover flex-shrink-0" onerror="this.src='https://placehold.co/16x16/0F172A/E2E8F0?text=${team.name.charAt(0)}'">
+            <span class="font-medium text-slate-200 truncate" title="${team.name}">${team.name}</span>
+        </div>
+    `;
+}
+
+function createHistoryStandings(standings) {
+    if (!standings || !standings.divisions) return '<p class="text-slate-400">No standings data found.</p>';
+    
+    let html = '<h4 class="text-lg font-semibold text-white">Final Standings</h4>';
+    html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+    
+    // Use the divisionOrder to maintain the correct display order
+    for (const divName of divisionOrder) {
+        // Find the division data, which might be missing in old history
+        const teams = standings.divisions[divName];
+        if (!teams) continue;
+
+        let tableHtml = `
+            <div class="bg-slate-700/50 rounded-lg overflow-hidden">
+                <h5 class="text-md font-bold text-slate-200 p-3">${divName}</h5>
+                <table class="min-w-full">
+                    <tbody class="divide-y divide-slate-600/50">
+        `;
+        teams.forEach((team, index) => {
+            const teamData = getTeam(team.id) || { name: team.id };
+            tableHtml += `
+                <tr class="hover:bg-slate-700">
+                    <td class="p-2 text-sm text-slate-300">${index + 1}</td>
+                    <td class="p-2 text-sm font-medium text-slate-200 truncate" title="${teamData.name}">${teamData.name}</td>
+                    <td class="p-2 text-sm text-slate-300 text-right">${team.wins}-${team.losses}${team.ties > 0 ? `-${team.ties}` : ''}</td>
+                </tr>
+            `;
+        });
+        tableHtml += '</tbody></table></div>';
+        html += tableHtml;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function createHistorySchedule(schedule, tiebreakers, teams) {
+    let html = '<h4 class="text-lg font-semibold text-white mb-2">Game Results</h4>';
+    html += '<div class="space-y-4 max-h-96 overflow-y-auto pr-2">';
+    
+    const allGames = { ...schedule, ...tiebreakers };
+    if (Object.keys(allGames).length === 0) {
+        return html + '<p class="text-slate-400">No game data found.</p></div>';
+    }
+    
+    for (const gameId in allGames) {
+        const game = allGames[gameId];
+        const team1 = getTeam(game.t1) || { name: "TBD" };
+        const team2 = getTeam(game.t2) || { name: "TBD" };
+        
+        const s1 = game.s1 ?? '-';
+        const s2 = game.s2 ?? '-';
+        
+        let t1Class = 'text-slate-300';
+        let t2Class = 'text-slate-300';
+        if(game.status === 'final') {
+            if (s1 > s2) t1Class = 'font-bold text-white';
+            else if (s2 > s1) t2Class = 'font-bold text-white';
+        }
+        
+        html += `
+            <div class="flex items-center justify-between text-sm bg-slate-700/50 p-2 rounded-md">
+                <div class="flex-1 space-y-1">
+                    <div class="flex justify-between items-center">
+                        <span class="${t1Class} truncate" title="${team1.name}">${team1.name}</span>
+                        <span class="${t1Class}">${s1}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="${t2Class} truncate" title="${team2.name}">${team2.name}</span>
+                        <span class="${t2Class}">${s2}</span>
+                    </div>
+                </div>
+                <span class="text-xs text-slate-400 ml-4">${game.week ? `Wk ${game.week}` : (game.name || 'TB')}</span>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function createHistoryPlayoffs(playoffs, teams) {
+    if (!playoffs) return '<p class="text-slate-400">No playoff data found.</p>';
+    
+    let html = '<h4 class="text-lg font-semibold text-white mb-2">Playoff Results</h4>';
+    html += '<div class="space-y-6">';
+
+    const bracketTitles = {
+        "C-American": "C-American",
+        "C-National": "C-National",
+        "C-Empire": "C-Empire",
+        "C-Plasma": "C-Plasma",
+        "WildBowl": "Wild Bowl",
+        "ProBowl": "Pro Bowl",
+        "InfinityBowl": "Infinity Bowl"
+    };
+
+    for (const confId in playoffs) {
+        const confGames = playoffs[confId];
+        if (!confGames || Object.keys(confGames).length === 0) continue;
+        
+        html += `<div class="bg-slate-700/50 rounded-lg p-3">
+                    <h5 class="text-md font-bold text-slate-200 mb-2">${bracketTitles[confId] || confId}</h5>
+                    <div class="space-y-2">`;
+        
+        // Simple list view for history
+        for (const gameId in confGames) {
+            const game = confGames[gameId];
+            const team1 = getTeam(game.t1) || { name: game.t1 || "TBD" };
+            const team2 = getTeam(game.t2) || { name: game.t2 || "TBD" };
+            
+            const s1 = game.s1 ?? '-';
+            const s2 = game.s2 ?? '-';
+            
+            let t1Class = 'text-slate-300';
+            let t2Class = 'text-slate-300';
+            if(game.status === 'final') {
+                if (s1 > s2) t1Class = 'font-bold text-white';
+                else if (s2 > s1) t2Class = 'font-bold text-white';
+            }
+            
+            html += `
+                <div class="text-sm bg-slate-600/50 p-2 rounded-md">
+                    <span class="text-xs text-slate-400">${game.name}</span>
+                    <div class="flex justify-between items-center mt-1">
+                        <span class="${t1Class} truncate" title="${team1.name}">${team1.name}</span>
+                        <span class="${t1Class}">${s1}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="${t2Class} truncate" title="${team2.name}">${team2.name}</span>
+                        <span class="${t2Class}">${s2}</span>
+                    </div>
+                </div>
+            `;
+        }
+        html += `</div></div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+
+// --- MODAL & UI LOGIC ---
+
+/**
+ * Switches the active tab.
+ */
+function switchTab(tabId) {
+    if (activeTab === tabId) return; // Do nothing if it's the same tab
+
+    // 1. Deactivate the old tab and content
+    const oldTab = document.querySelector(`.nav-tab[data-tab="${activeTab}"]`);
+    const oldContent = document.getElementById(activeTab);
+    if (oldTab) oldTab.classList.remove('active');
+    if (oldContent) oldContent.classList.remove('active');
+
+    // 2. Activate the new tab and content
+    const newTab = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+    const newContent = document.getElementById(tabId);
+    if (newTab) newTab.classList.add('active');
+    if (newContent) newContent.classList.add('active');
+    
+    // 3. Update the global state
+    activeTab = tabId;
+}
+
+/**
+ * Opens the 'Edit Score' modal.
+ */
+function openEditScoreModal(gameType, gameId) {
+    let game;
+    if (gameType === 'schedule') game = db.schedule[gameId];
+    else if (gameType === 'tiebreaker') game = db.tiebreakers[gameId];
+    else if (gameType === 'playoff') {
+        for (const conf in db.playoffs) {
+            if (db.playoffs[conf][gameId]) {
+                game = db.playoffs[conf][gameId];
+                break;
+            }
+        }
+    }
+
+    if (!game) {
+        console.error(`Game not found: ${gameType}, ${gameId}`);
+        return;
+    }
+
+    const team1 = getTeam(game.t1) || { name: game.t1 || "TBD" };
+    const team2 = getTeam(game.t2) || { name: game.t2 || "TBD" };
+
+    document.getElementById('modal-score-title').textContent = `Edit Score: ${game.name || `${team1.name} vs ${team2.name}`}`;
+    document.getElementById('modal-team1-name').textContent = team1.name;
+    document.getElementById('modal-team2-name').textContent = team2.name;
+    document.getElementById('modal-team1-score').value = game.s1;
+    document.getElementById('modal-team2-score').value = game.s2;
+    document.getElementById('modal-game-id').value = gameId;
+    document.getElementById('modal-game-type').value = gameType;
+    
+    document.getElementById('modal-status-pending').checked = game.status === 'pending';
+    document.getElementById('modal-status-final').checked = game.status === 'final';
+    
+    // Disable inputs if teams are TBD
+    const isTbd = team1.name === "TBD" || team2.name === "TBD";
+    document.getElementById('modal-team1-score').disabled = isTbd;
+    document.getElementById('modal-team2-score').disabled = isTbd;
+    document.getElementById('modal-status-final').disabled = isTbd;
+    document.getElementById('btn-modal-score-save').disabled = isTbd;
+    if(isTbd) {
+        document.getElementById('modal-status-pending').checked = true;
+    }
+
+    document.getElementById('modal-edit-score').classList.add('active');
+}
+
+/**
+ * Saves the score from the modal.
+ */
+function saveScore() {
+    const gameId = document.getElementById('modal-game-id').value;
+    const gameType = document.getElementById('modal-game-type').value;
+    const s1 = document.getElementById('modal-team1-score').value;
+    const s2 = document.getElementById('modal-team2-score').value;
+    const status = document.getElementById('modal-status-final').checked ? 'final' : 'pending';
+
+    let game;
+    if (gameType === 'schedule') game = db.schedule[gameId];
+    else if (gameType === 'tiebreaker') game = db.tiebreakers[gameId];
+    else if (gameType === 'playoff') {
+        for (const conf in db.playoffs) {
+            if (db.playoffs[conf][gameId]) {
+                game = db.playoffs[conf][gameId];
+                break;
+            }
+        }
+    }
+
+    if (game) {
+        game.s1 = s1 === '' ? null : parseInt(s1, 10);
+        game.s2 = s2 === '' ? null : parseInt(s2, 10);
+        game.status = status;
+        
+        // If status is pending, scores should be null if empty
+        if(game.status === 'pending' && s1 === '' && s2 === '') {
+            game.s1 = null;
+            game.s2 = null;
+        }
+        
+        // If status is final, but scores are empty, set to 0-0
+        if(game.status === 'final' && (game.s1 === null || game.s2 === null)) {
+            game.s1 = game.s1 ?? 0;
+            game.s2 = game.s2 ?? 0;
+        }
+    }
+
+    closeModal('modal-edit-score');
+    renderAll();
+    saveData(); // Auto-save on score change
+}
+
+/**
+ * Opens the 'Edit Team' modal.
+ */
+function openEditTeamModal(teamId) {
+    const team = getTeam(teamId);
+    if (!team) return;
+
+    document.getElementById('modal-team-title').textContent = `Edit: ${team.name}`;
+    document.getElementById('modal-team-name').value = team.name;
+    document.getElementById('modal-team-logo').value = team.logo;
+    document.getElementById('modal-team-id').value = teamId;
+    
+    document.getElementById('modal-edit-team').classList.add('active');
+}
+
+/**
+ * Saves team data from the modal.
+ */
+function saveTeamData() {
+    const teamId = document.getElementById('modal-team-id').value;
+    const newName = document.getElementById('modal-team-name').value;
+    const newLogo = document.getElementById('modal-team-logo').value;
+
+    if (teamId && db.teams[teamId]) {
+        if (newName.trim() !== "") {
+            db.teams[teamId].name = newName.trim();
+        }
+        db.teams[teamId].logo = newLogo.trim();
+    }
+    
+    closeModal('modal-edit-team');
+    renderAll();
+    saveData();
+}
+
+/**
+ * Closes any active modal.
+ */
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+/**
+ * Shows the error modal with a specific message.
+ */
+function showErrorModal(message, error) {
+    console.error(message, error);
+    const errorModal = document.getElementById('error-modal');
+    const errorText = document.getElementById('error-message-text');
+    
+    errorText.textContent = `${message} (Error: ${error.message || 'Unknown'})`;
+    errorModal.style.display = 'flex';
+}
+
+/**
+ * Hides the error modal.
+ */
+function hideErrorModal() {
+    document.getElementById('error-modal').style.display = 'none';
+}
+
+/**
+ * Handles the "fatal error" state.
+ */
+function showFatalError(error) {
+    console.error("FATAL ERROR:", error);
+    // Hide the app and show the fallback
+    const app = document.getElementById('app-container');
+    const fallback = document.getElementById('fatal-error-fallback');
+    
+    if (app) app.style.display = 'none';
+    if (fallback) fallback.style.display = 'block';
+    
+    // Add listener to the reset button
+    const fatalResetBtn = document.getElementById('fatal-reset-button');
+    if (fatalResetBtn) {
+        // Remove old listeners to be safe
+        fatalResetBtn.replaceWith(fatalResetBtn.cloneNode(true));
+        // Add new one
+        document.getElementById('fatal-reset-button').addEventListener('click', () => {
+            console.warn('Forcing reset from fatal error handler...');
+            localStorage.removeItem(DB_STORAGE_KEY);
+            window.location.reload();
+        });
+    }
+}
+
+// --- DATA MANIPULATION & LOGIC ---
+
+/**
+ * Clears all scores for a given game type.
+ */
+function clearAllScores(gameType) {
+    if (!confirm(`Are you sure you want to clear all scores for the ${gameType}? This cannot be undone.`)) {
+        return;
+    }
+    
+    let gameList;
+    if (gameType === 'schedule') {
+        gameList = db.schedule;
+    } else if (gameType === 'tiebreakers') {
+        gameList = db.tiebreakers;
+    } else if (gameType === 'playoffs') {
+        // Clear all playoff games
+        for (const conf in db.playoffs) {
+            for (const gameId in db.playoffs[conf]) {
+                const game = db.playoffs[conf][gameId];
+                game.s1 = null;
+                game.s2 = null;
+                game.status = 'pending';
+            }
+        }
+    }
+
+    if (gameList) {
+        for (const gameId in gameList) {
+            gameList[gameId].s1 = null;
+            gameList[gameId].s2 = null;
+            gameList[gameId].status = 'pending';
+        }
+    }
+    
+    renderAll();
+    saveData();
+}
+
+/**
+ * Resets all league data to default.
+ */
+function resetAllData() {
+    if (confirm('WARNING: This will delete ALL teams, scores, and history. This is irreversible. Are you absolutely sure?')) {
+        localStorage.removeItem(DB_STORAGE_KEY);
+        window.location.reload();
+    }
+}
+
+/**
+ * Exports the current DB to a .json file.
+ */
+function exportData() {
+    try {
+        const dataString = JSON.stringify(db, null, 2);
+        const blob = new Blob([dataString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cgfl_league_data_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Failed to export data:', error);
+        showErrorModal('Failed to export data.', error);
+    }
+}
+
+/**
+ * Imports league data from a .json file.
+ */
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            
+            // Basic validation
+            if (!importedData.teams || !importedData.schedule || !importedData.playoffs) {
+                throw new Error('Invalid file format. Missing required keys.');
+            }
+            
+            // Use the deep merge to safely import the data
+            const defaultDB = JSON.parse(JSON.stringify(db)); // Get default structure
+            db = deepMerge(defaultDB, importedData);
+            db.version = CURRENT_APP_VERSION; // Set to current version
+
+            saveData();
+            renderAll();
+            closeModal('modal-settings');
+            alert('Data imported successfully!');
+        } catch (error) {
+            console.error('Failed to import data:', error);
+            showErrorModal('Failed to import data. The file may be corrupted or in an invalid format.', error);
+        } finally {
+            // Reset file input
+            event.target.value = null;
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * Auto-populates playoff winners to the next round.
+ */
+function autoPopulateWinners() {
+    const standings = getStandings();
+    
+    // --- Conference Semi-Finals (from Standings) ---
+    // C-American
+    db.playoffs["C-American"]["A-SF1"].t1 = standings.divisions["C-American North"][0]?.id || "TBD";
+    db.playoffs["C-American"]["A-SF1"].t2 = standings.divisions["C-American South"][1]?.id || "TBD";
+    db.playoffs["C-American"]["A-SF2"].t1 = standings.divisions["C-American South"][0]?.id || "TBD";
+    db.playoffs["C-American"]["A-SF2"].t2 = standings.divisions["C-American North"][1]?.id || "TBD";
+    
+    // C-National
+    db.playoffs["C-National"]["N-SF1"].t1 = standings.divisions["C-National North"][0]?.id || "TBD";
+    db.playoffs["C-National"]["N-SF1"].t2 = standings.divisions["C-National South"][1]?.id || "TBD";
+    db.playoffs["C-National"]["N-SF2"].t1 = standings.divisions["C-National South"][0]?.id || "TBD";
+    db.playoffs["C-National"]["N-SF2"].t2 = standings.divisions["C-National North"][1]?.id || "TBD";
+
+    // C-Empire
+    db.playoffs["C-Empire"]["E-SF1"].t1 = standings.divisions["C-Empire North"][0]?.id || "TBD";
+    db.playoffs["C-Empire"]["E-SF1"].t2 = standings.divisions["C-Empire South"][1]?.id || "TBD";
+    db.playoffs["C-Empire"]["E-SF2"].t1 = standings.divisions["C-Empire South"][0]?.id || "TBD";
+    db.playoffs["C-Empire"]["E-SF2"].t2 = standings.divisions["C-Empire North"][1]?.id || "TBD";
+
+    // C-Plasma
+    db.playoffs["C-Plasma"]["P-SF1"].t1 = standings.divisions["C-Plasma North"][0]?.id || "TBD";
+    db.playoffs["C-Plasma"]["P-SF1"].t2 = standings.divisions["C-Plasma South"][1]?.id || "TBD";
+    db.playoffs["C-Plasma"]["P-SF2"].t1 = standings.divisions["C-Plasma South"][0]?.id || "TBD";
+    db.playoffs["C-Plasma"]["P-SF2"].t2 = standings.divisions["C-Plasma North"][1]?.id || "TBD";
+    
+    // --- Conference Finals (from SF winners) ---
+    db.playoffs["C-American"]["A-F"].t1 = getGameResult(db.playoffs["C-American"]["A-SF1"]).winner || "TBD";
+    db.playoffs["C-American"]["A-F"].t2 = getGameResult(db.playoffs["C-American"]["A-SF2"]).winner || "TBD";
+    
+    db.playoffs["C-National"]["N-F"].t1 = getGameResult(db.playoffs["C-National"]["N-SF1"]).winner || "TBD";
+    db.playoffs["C-National"]["N-F"].t2 = getGameResult(db.playoffs["C-National"]["N-SF2"]).winner || "TBD";
+
+    db.playoffs["C-Empire"]["E-F"].t1 = getGameResult(db.playoffs["C-Empire"]["E-SF1"]).winner || "TBD";
+    db.playoffs["C-Empire"]["E-F"].t2 = getGameResult(db.playoffs["C-Empire"]["E-SF2"]).winner || "TBD";
+
+    db.playoffs["C-Plasma"]["P-F"].t1 = getGameResult(db.playoffs["C-Plasma"]["P-SF1"]).winner || "TBD";
+    db.playoffs["C-Plasma"]["P-F"].t2 = getGameResult(db.playoffs["C-Plasma"]["P-SF2"]).winner || "TBD";
+
+    // --- Wild Bowl Semi-Finals (from Conf Finals winners) ---
+    db.playoffs["WildBowl"]["W-SF1"].t1 = getGameResult(db.playoffs["C-American"]["A-F"]).winner || "TBD";
+    db.playoffs["WildBowl"]["W-SF1"].t2 = getGameResult(db.playoffs["C-National"]["N-F"]).winner || "TBD";
+    db.playoffs["WildBowl"]["W-SF2"].t1 = getGameResult(db.playoffs["C-Empire"]["E-F"]).winner || "TBD";
+    db.playoffs["WildBowl"]["W-SF2"].t2 = getGameResult(db.playoffs["C-Plasma"]["P-F"]).winner || "TBD";
+
+    // --- Wild Bowl Final (from Wild Bowl SF winners) ---
+    db.playoffs["WildBowl"]["W-F"].t1 = getGameResult(db.playoffs["WildBowl"]["W-SF1"]).winner || "TBD";
+    db.playoffs["WildBowl"]["W-F"].t2 = getGameResult(db.playoffs["WildBowl"]["W-SF2"]).winner || "TBD";
+
+    // --- Wild Bowl 3rd Place (from Wild Bowl SF losers) ---
+    db.playoffs["WildBowl"]["W-3RD"].t1 = getGameResult(db.playoffs["WildBowl"]["W-SF1"]).loser || "TBD";
+    db.playoffs["WildBowl"]["W-3RD"].t2 = getGameResult(db.playoffs["WildBowl"]["W-SF2"]).loser || "TBD";
+    
+    // --- Infinity Bowl (from Wild Bowl Final winner) ---
+    db.playoffs["InfinityBowl"]["I-SF1"].t1 = getGameResult(db.playoffs["WildBowl"]["W-F"]).winner || "TBD";
+    // I-SF1.t2, I-SF2.t1, I-SF2.t2 are manual (TBD)
+
+    // --- Infinity Bowl Final (from Infinity Bowl SF winners) ---
+    db.playoffs["InfinityBowl"]["I-F"].t1 = getGameResult(db.playoffs["InfinityBowl"]["I-SF1"]).winner || "TBD";
+    db.playoffs["InfinityBowl"]["I-F"].t2 = getGameResult(db.playoffs["InfinityBowl"]["I-SF2"]).winner || "TBD";
+
+    renderAll();
+    saveData();
+}
+
+/**
+ * Saves the current season state to history.
+ */
+function saveSeasonToHistory() {
+    const seasonName = prompt("Enter a name for this season (e.g., 'Season 1' or '2025 Season'):", `Season ${db.history.length + 1}`);
+    if (!seasonName) return;
+
+    // Get final champions
+    const champions = {
+        american:     getGameResult(db.playoffs["C-American"]["A-F"]).winner,
+        national:     getGameResult(db.playoffs["C-National"]["N-F"]).winner,
+        empire:       getGameResult(db.playoffs["C-Empire"]["E-F"]).winner,
+        plasma:       getGameResult(db.playoffs["C-Plasma"]["P-F"]).winner,
+        wildBowl:     getGameResult(db.playoffs["WildBowl"]["W-F"]).winner,
+        proBowl:      getGameResult(db.playoffs["ProBowl"]["PB-G"]).winner,
+        infinityBowl: getGameResult(db.playoffs["InfinityBowl"]["I-F"]).winner
+    };
+
+    // Create a deep snapshot of the current state
+    const seasonSnapshot = {
+        name: seasonName,
+        date: new Date().toISOString(),
+        champions: champions,
+        standings: JSON.parse(JSON.stringify(getStandings())),
+        teams: JSON.parse(JSON.stringify(db.teams)),
+        schedule: JSON.parse(JSON.stringify(db.schedule)),
+        tiebreakers: JSON.parse(JSON.stringify(db.tiebreakers)),
+        playoffs: JSON.parse(JSON.stringify(db.playoffs))
+    };
+    
+    db.history.push(seasonSnapshot);
+    renderSeasonHistory(); // Re-render the history tab
+    saveData();
+    switchTab('tab-history'); // Switch to history tab to show the new entry
+}
+
+/**
+ * Deletes a season from history.
+ */
+function deleteSeasonFromHistory(index) {
+    if (confirm(`Are you sure you want to delete "${db.history[index].name}" from history? This cannot be undone.`)) {
+        db.history.splice(index, 1);
+        renderSeasonHistory();
+        saveData();
+    }
+}
+
+
+// --- INITIALIZATION & EVENT LISTENERS ---
+
+/**
+ * Main app initialization function.
+ */
+function init() {
+    // Wrap the core load/render in a try...catch to show the fatal error screen.
+    try {
+        // 1. Load data
+        loadData();
+        
+        // 2. Render UI
+        renderAll();
+        
+        // 3. Attach event listeners
+        
+        // Tab Navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+
+        // Save Button
+        document.getElementById('btn-save').addEventListener('click', saveData);
+
+        // Settings Modal
+        document.getElementById('btn-settings').addEventListener('click', () => document.getElementById('modal-settings').classList.add('active'));
+        document.getElementById('btn-modal-settings-close').addEventListener('click', () => closeModal('modal-settings'));
+        document.getElementById('btn-reset-all').addEventListener('click', resetAllData);
+        document.getElementById('btn-export-data').addEventListener('click', exportData);
+        document.getElementById('import-file-input').addEventListener('change', importData);
+
+        // Edit Score Modal
+        document.getElementById('btn-modal-score-cancel').addEventListener('click', () => closeModal('modal-edit-score'));
+        document.getElementById('btn-modal-score-save').addEventListener('click', saveScore);
+
+        // Edit Team Modal
+        document.getElementById('btn-modal-team-cancel').addEventListener('click', () => closeModal('modal-edit-team'));
+        document.getElementById('btn-modal-team-save').addEventListener('click', saveTeamData);
+        
+        // Error Modal
+        document.getElementById('error-close-button').addEventListener('click', hideErrorModal);
+        document.getElementById('error-reset-button').addEventListener('click', () => {
+            hideErrorModal();
+            resetAllData();
+        });
+
+        // Clear Scores Buttons
+        document.getElementById('btn-clear-scores-schedule').addEventListener('click', () => clearAllScores('schedule'));
+        document.getElementById('btn-clear-scores-tiebreakers').addEventListener('click', () => clearAllScores('tiebreakers'));
+        document.getElementById('btn-clear-scores-playoffs').addEventListener('click', () => clearAllScores('playoffs'));
+
+        // Playoff Auto-Populate
+        document.getElementById('btn-auto-populate-playoffs').addEventListener('click', autoPopulateWinners);
+        
+        // Season History
+        document.getElementById('btn-save-season').addEventListener('click', saveSeasonToHistory);
+
+        // Dynamic Listeners (using event delegation on main containers)
+        
+        // Edit Team Buttons
+        document.getElementById('tab-teams').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-edit-team');
+            if (btn) {
+                openEditTeamModal(btn.dataset.teamId);
+            }
+        });
+
+        // Edit Score Buttons (Schedule & Tiebreakers)
+        document.getElementById('tab-schedule').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-edit-score');
+            if (btn) {
+                openEditScoreModal(btn.dataset.gameType, btn.dataset.gameId);
+            }
+        });
+        document.getElementById('tab-tiebreakers').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-edit-score');
+            if (btn) {
+                openEditScoreModal(btn.dataset.gameType, btn.dataset.gameId);
+            }
+        });
+        
+        // Edit Score Buttons (Live Scoreboard)
+        // This is handled in renderScoreboards() as it's a dynamic view
+        
+        // Edit Score Buttons (Playoffs)
+        document.getElementById('tab-playoffs').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-edit-score-playoff');
+            if (btn) {
+                openEditScoreModal(btn.dataset.gameType, btn.dataset.gameId);
+            }
+        });
+
+        // History Toggles & Delete
+        document.getElementById('tab-history').addEventListener('click', (e) => {
+            const toggleBtn = e.target.closest('.btn-toggle-history');
+            if (toggleBtn) {
+                const targetId = toggleBtn.dataset.target;
+                const targetEl = document.getElementById(targetId);
+                if (targetEl) {
+                    targetEl.classList.toggle('hidden');
+                    toggleBtn.classList.toggle('bg-slate-600');
+                    toggleBtn.classList.toggle('bg-blue-600');
+                }
+            }
+            
+            const deleteBtn = e.target.closest('.btn-delete-history');
+            if (deleteBtn) {
+                deleteSeasonFromHistory(parseInt(deleteBtn.dataset.index, 10));
+            }
+        });
+        
+        // 4. Show the app
+        document.getElementById('app-container').classList.remove('opacity-0');
+
+    } catch (startupError) {
+        // If *anything* fails during init, show the fatal error screen.
+        showFatalError(startupError);
+    }
+}
+
+// --- APP START ---
+// Run the app once the DOM is ready.
+document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
